@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changelog-001-init-tables.yaml
+  - include:
+      file: db/changelog/changelog-002-add-bookings.yaml
+  - include:
+      file: db/changelog/changelog-003-booking-indexes.yaml

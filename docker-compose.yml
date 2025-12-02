@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: booking_db_dev
+    environment:
+      POSTGRES_DB: bookingdb
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_pass
+    ports:
+      - "55432:5432"
+    volumes:
+      - booking_pgdata_dev:/var/lib/postgresql/data
+
+volumes:
+  booking_pgdata_dev:

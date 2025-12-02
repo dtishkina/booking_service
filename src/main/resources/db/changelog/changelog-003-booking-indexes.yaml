@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-add-unique-booking-resource-period
+      author: daria
+      changes:
+        # Запрещаем точные дубликаты:
+        # один и тот же resource_id + тот же start_time + тот же end_time
+        - addUniqueConstraint:
+            tableName: booking
+            columnNames: resource_id, start_time, end_time
+            constraintName: uq_booking_resource_period
+
+  - changeSet:
+      id: 007-add-booking-indexes
+      author: daria
+      changes:
+        # Индекс по пользователю (для "мои брони")
+        - createIndex:
+            tableName: booking
+            indexName: idx_booking_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        # Индекс по ресурсу (для "все брони конкретной комнаты")
+        - createIndex:
+            tableName: booking
+            indexName: idx_booking_resource_id
+            columns:
+              - column:
+                  name: resource_id
+
+        # Составной индекс по ресурсу и интервалу
+        # Подходит для запросов:
+        #   WHERE resource_id = ? AND start_time >= ? AND end_time <= ?
+        - createIndex:
+            tableName: booking
+            indexName: idx_booking_resource_period
+            columns:
+              - column:
+                  name: resource_id
+              - column:
+                  name: start_time
+              - column:
+                  name: end_time
