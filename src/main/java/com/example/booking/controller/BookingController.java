@@ -10,15 +10,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @Tag(name = "Bookings", description = "Управление бронированиями ресурсов")
+@SecurityRequirement(name = "bearerAuth")
 public class BookingController {
     private final BookingService bookingService;
 
@@ -27,6 +30,7 @@ public class BookingController {
     }
 
     @GetMapping("/api/users/{userId}/bookings")
+    @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
             summary = "Получить бронирования пользователя",
             description = "Возвращает список всех бронирований, созданных указанным пользователем."
@@ -47,6 +51,7 @@ public class BookingController {
     }
 
     @PostMapping("/api/users/{userId}/bookings")
+    @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Создать бронирование",
@@ -80,6 +85,7 @@ public class BookingController {
 
     @DeleteMapping("/api/users/{userId}/bookings/{bookingId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
             summary = "Отменить бронирование",
             description = "Отменяет бронирование. Сейчас отмена разрешена только владельцу брони."
@@ -107,6 +113,7 @@ public class BookingController {
     }
 
     @GetMapping("/api/resources/{resourceId}/bookings")
+    @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
             summary = "Получить активные бронирования ресурса",
             description = "Возвращает список активных бронирований для указанного ресурса."

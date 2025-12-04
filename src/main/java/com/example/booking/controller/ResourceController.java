@@ -11,9 +11,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/resources")
 @Tag(name = "Resources", description = "Управление ресурсами для бронирования")
+@SecurityRequirement(name = "bearerAuth")
 public class ResourceController {
     private final ResourceService resourceService;
 
@@ -29,6 +32,7 @@ public class ResourceController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
             summary = "Получить список ресурсов",
             description = "Возвращает список ресурсов. По умолчанию только активные ресурсы."
@@ -51,6 +55,7 @@ public class ResourceController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
             summary = "Получить ресурс по ID",
             description = "Возвращает информацию о ресурсе по его идентификатору."
@@ -72,6 +77,7 @@ public class ResourceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Создать ресурс",
             description = "Создаёт новый ресурс для бронирования (переговорку, рабочее место и т.п.)."
@@ -89,6 +95,7 @@ public class ResourceController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Обновить ресурс",
             description = "Полностью обновляет данные ресурса по его идентификатору."
@@ -115,6 +122,7 @@ public class ResourceController {
 
     @PatchMapping("/{id}/deactivate")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Деактивировать ресурс",
             description = "Помечает ресурс как неактивный. Не удаляет его из системы."
