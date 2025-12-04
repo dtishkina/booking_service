@@ -30,3 +30,8 @@ logging:
 springdoc:
   swagger-ui:
     path: /swagger-ui
+
+app:
+  jwt:
+    secret: "super_secret_key_for_jwt_must_be_long_enough_123"
+    expiration-ms: 3600000
