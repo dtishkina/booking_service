@@ -3,6 +3,7 @@ package com.example.booking.controller;
 import com.example.booking.dto.BookingCreateRequest;
 import com.example.booking.dto.BookingResponse;
 import com.example.booking.dto.ErrorResponse;
+import com.example.booking.security.CustomUserDetails;
 import com.example.booking.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,33 +31,30 @@ public class BookingController {
         this.bookingService = bookingService;
     }
 
-    @GetMapping("/api/users/{userId}/bookings")
+    @GetMapping("/api/bookings/my")
     @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
-            summary = "Получить бронирования пользователя",
-            description = "Возвращает список всех бронирований, созданных указанным пользователем."
+            summary = "Получить мои бронирования",
+            description = "Возвращает список всех бронирований, созданных текущим аутентифицированным пользователем."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Список бронирований пользователя"),
             @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь не найден",
+                    responseCode = "401",
+                    description = "Пользователь не аутентифицирован",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    public List<BookingResponse> getBookingsForUser(
-            @Parameter(description = "Идентификатор пользователя", example = "1")
-            @PathVariable Long userId
-    ) {
-        return bookingService.getBookingsForUser(userId);
+    public List<BookingResponse> getBookingsForUser(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        return bookingService.getBookingsForUser(currentUser.getId());
     }
 
-    @PostMapping("/api/users/{userId}/bookings")
+    @PostMapping("/api/bookings")
     @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Создать бронирование",
-            description = "Создаёт новое бронирование ресурса от имени пользователя."
+            description = "Создаёт новое бронирование ресурса от имени текущего пользователя."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Бронирование успешно создано"),
@@ -66,7 +65,7 @@ public class BookingController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Пользователь или ресурс не найдены",
+                    description = "Ресурс не найден",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
@@ -76,25 +75,24 @@ public class BookingController {
             )
     })
     public BookingResponse createBooking(
-            @Parameter(description = "Идентификатор пользователя", example = "1")
-            @PathVariable Long userId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
             @RequestBody @Valid BookingCreateRequest request
     ) {
-        return bookingService.createBooking(userId, request);
+        return bookingService.createBooking(currentUser.getId(), request);
     }
 
-    @DeleteMapping("/api/users/{userId}/bookings/{bookingId}")
+    @DeleteMapping("/api/bookings/{bookingId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('USER','MANAGER','ADMIN')")
     @Operation(
             summary = "Отменить бронирование",
-            description = "Отменяет бронирование. Сейчас отмена разрешена только владельцу брони."
+            description = "Отменяет бронирование, если текущий пользователь является его владельцем."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Бронирование успешно отменено"),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Пользователь или бронирование не найдены",
+                    description = "Бронирование не найдено",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
@@ -104,12 +102,11 @@ public class BookingController {
             )
     })
     public void cancelBooking(
-            @Parameter(description = "Идентификатор пользователя", example = "1")
-            @PathVariable Long userId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
             @Parameter(description = "Идентификатор бронирования", example = "10")
             @PathVariable Long bookingId
     ) {
-        bookingService.cancelBooking(userId, bookingId);
+        bookingService.cancelBooking(currentUser.getId(), bookingId);
     }
 
     @GetMapping("/api/resources/{resourceId}/bookings")
