@@ -50,6 +50,14 @@ public class BookingService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<BookingResponse> getAllBookings() {
+        return bookingRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
     public BookingResponse createBooking(Long userId, BookingCreateRequest request) {
         User user = getUserOrThrow(userId);
         Resource resource = getResourceOrThrow(request.resourceId());
@@ -88,6 +96,10 @@ public class BookingService {
         return toDto(saved);
     }
 
+    public BookingResponse createBookingForUser(Long userId, BookingCreateRequest request) {
+        return createBooking(userId, request);
+    }
+
     public void cancelBooking(Long userId, Long bookingId) {
         User user = getUserOrThrow(userId);
 
@@ -97,6 +109,18 @@ public class BookingService {
         if (!booking.getUser().getId().equals(user.getId())) {
             throw new BookingConflictException("User is not owner of this booking");
         }
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            return;
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+    }
+
+    public void cancelBookingAsAdmin(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Booking not found: id = " + bookingId));
 
         if (booking.getStatus() == BookingStatus.CANCELLED) {
             return;
