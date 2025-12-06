@@ -35,3 +35,9 @@ app:
   jwt:
     secret: "super_secret_key_for_jwt_must_be_long_enough_123"
     expiration-ms: 3600000
+
+booking:
+  min-duration-minutes: 30
+  max-duration-hours: 8
+  max-booking-days-ahead: 30
+
