@@ -1,5 +1,6 @@
 package com.example.booking.service;
 
+import com.example.booking.config.BookingProperties;
 import com.example.booking.dto.BookingCreateRequest;
 import com.example.booking.dto.BookingResponse;
 import com.example.booking.entity.Booking;
@@ -14,22 +15,30 @@ import com.example.booking.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 
 @Service
 @Transactional
 public class BookingService {
+    private record BookingInterval(
+            OffsetDateTime start,
+            OffsetDateTime end
+    ) {}
+
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
+    private final BookingProperties bookingProperties;
 
     public BookingService(BookingRepository bookingRepository,
                           UserRepository userRepository,
-                          ResourceRepository resourceRepository) {
+                          ResourceRepository resourceRepository, BookingProperties bookingProperties) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.resourceRepository = resourceRepository;
+        this.bookingProperties = bookingProperties;
     }
 
     @Transactional(readOnly = true)
@@ -66,19 +75,17 @@ public class BookingService {
             throw new BookingConflictException("Resource is not active: id = " + resource.getId());
         }
 
-        OffsetDateTime start = request.startTime();
-        OffsetDateTime end = request.endTime();
-
-        if(start == null || end == null || !start.isBefore(end)) {
-            throw new BookingConflictException("Invalid time range: start must be before end");
-        }
+        BookingInterval interval = normalizeAndValidateInterval(
+                request.startTime(),
+                request.endTime()
+        );
 
         var overlapping = bookingRepository
                 .findByResourceAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
                         resource,
                         BookingStatus.ACTIVE,
-                        end,
-                        start
+                        interval.end(),
+                        interval.start()
                 );
 
         if (!overlapping.isEmpty()) {
@@ -88,8 +95,8 @@ public class BookingService {
         Booking booking = new Booking();
         booking.setUser(user);
         booking.setResource(resource);
-        booking.setStartTime(start);
-        booking.setEndTime(end);
+        booking.setStartTime(interval.start());
+        booking.setEndTime(interval.end());
         booking.setStatus(BookingStatus.ACTIVE);
 
         Booking saved = bookingRepository.save(booking);
@@ -151,4 +158,57 @@ public class BookingService {
                 booking.getStatus()
         );
     }
+
+    private BookingInterval normalizeAndValidateInterval(OffsetDateTime start,
+                                                         OffsetDateTime end) {
+        if (start == null || end == null) {
+            throw new BookingConflictException("Start and end time must be provided");
+        }
+
+        OffsetDateTime normalizedStart = start.withSecond(0).withNano(0);
+        OffsetDateTime normalizedEnd = end.withSecond(0).withNano(0);
+
+        if (normalizedEnd.isBefore(normalizedStart)) {
+            OffsetDateTime tmp = normalizedStart;
+            normalizedStart = normalizedEnd;
+            normalizedEnd = tmp;
+        }
+
+        if (!normalizedStart.isBefore(normalizedEnd)) {
+            throw new BookingConflictException("Start time must be before end time");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now().withSecond(0).withNano(0);
+
+        if (normalizedStart.isBefore(now)) {
+            throw new BookingConflictException("Cannot create booking in the past");
+        }
+
+        long maxDaysAhead = bookingProperties.maxBookingDaysAhead();
+        if (normalizedStart.isAfter(now.plusDays(maxDaysAhead))) {
+            throw new BookingConflictException(
+                    "Cannot create booking more than " + maxDaysAhead + " days ahead"
+            );
+        }
+
+        long minutes = Duration.between(normalizedStart, normalizedEnd).toMinutes();
+
+        long minMinutes = bookingProperties.minDurationMinutes();
+        if (minutes < minMinutes) {
+            throw new BookingConflictException(
+                    "Booking duration must be at least " + minMinutes + " minutes"
+            );
+        }
+
+        long maxMinutes = bookingProperties.maxDurationHours() * 60;
+        if (minutes > maxMinutes) {
+            throw new BookingConflictException(
+                    "Booking duration must not exceed " + bookingProperties.maxDurationHours() + " hours"
+            );
+        }
+
+        return new BookingInterval(normalizedStart, normalizedEnd);
+    }
+
+
 }
